@@ -1,35 +1,15 @@
 
-name: Build PC NEXUS EXE
-
-on:
-  workflow_dispatch:
-  push:
-    branches: [main]
-
-jobs:
-  build:
-    runs-on: windows-latest
-    steps:
-      - name: Download source code
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Install dependencies
+      - name: Find and build EXE
+        shell: pwsh
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pyinstaller
+          $script = Get-ChildItem -Path . -Filter main.py -Recurse -File |
+            Where-Object { $_.FullName -notmatch '\\\.git\\|\\build\\' } |
+            Select-Object -First 1
 
-      - name: Build EXE
-        run: |
-          pyinstaller --noconfirm --onefile --windowed --name PC_NEXUS pc_nexus/main.py
+          if (-not $script) {
+            Write-Error "main.py not found in repository"
+            exit 1
+          }
 
-      - name: Upload EXE
-        uses: actions/upload-artifact@v4
-        with:
-          name: PC-NEXUS-Windows
-          path: dist/PC_NEXUS.exe
+          Write-Host "Building from: $($script.FullName)"
+          pyinstaller --noconfirm --onefile --windowed --name PC_NEXUS $script.FullName
